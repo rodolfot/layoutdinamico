@@ -8,6 +8,42 @@ Stack: **Node.js + TypeScript + Express + oracledb** · **Oracle Database Free 2
 
 ---
 
+## 🚀 Início rápido (clone e rode)
+
+Pré-requisito: **Docker Desktop** (ou Docker Engine + Compose).
+
+```bash
+git clone https://github.com/rodolfot/layoutdinamico.git
+cd layoutdinamico
+docker compose --profile full up -d --build
+# 1º boot do Oracle leva ~2-3 min. Acompanhe: docker compose ps
+```
+
+Quando os containers estiverem *healthy*, abra **<http://localhost:3000>** e entre:
+
+| Usuário | Senha | Perfil |
+|---|---|---|
+| `admin` | `admin123` | tudo + vê dados sensíveis (PII) |
+| `editor` | `editor123` | cadastra/edita, sem PII |
+| `viewer` | `viewer123` | somente leitura (mascarado) |
+
+- **Não precisa configurar nada**: o Compose sobe o Oracle, aplica os *grants* de VPD (como SYS) e roda
+  as *migrations* automaticamente, nesta ordem.
+- 📖 **Guia de uso visual** (passo a passo): <http://localhost:3000/ui/guia.html>
+- Para parar tudo: `docker compose --profile full down` (adicione `-v` para apagar os dados).
+
+**Desenvolvimento com hot reload** (API fora do container):
+```bash
+docker compose up -d                 # só o Oracle
+docker exec -i poc-oracle-free sqlplus -s "sys/oracle_sys_pw@localhost:1521/FREEPDB1 as sysdba" < scripts/grant-vpd.sql
+cp .env.example .env
+npm install
+npm run db:reset                     # aplica as migrations V001..V009
+npm run dev                          # API + UI em http://localhost:3000
+```
+
+---
+
 ## 1. Arquitetura proposta
 
 Modelo **híbrido "core + dynamic + metadata-driven"**, com três pilares:

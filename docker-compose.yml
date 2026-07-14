@@ -1,11 +1,10 @@
-# Oracle Database Free 23ai (inclui suporte nativo ao tipo JSON).
-# Imagem gvenzl/oracle-free: leve, com healthcheck e criacao automatica de usuario.
+# Stack completa (Oracle Free 23ai + API), pronta para clonar e rodar:
 #
-#   docker compose up -d
-#   # aguarde ficar "healthy":  docker compose ps
-#   npm run db:init            # cria schema + seed de metadados
+#   docker compose --profile full up -d --build
+#   # aguarde ~2-3 min (primeiro boot do Oracle) e acesse http://localhost:3000
 #
-# APP_USER/APP_USER_PASSWORD criam automaticamente o usuario "app" no PDB FREEPDB1.
+# Ordem automatica: oracle (healthy) -> grants de VPD (como SYS) -> api (migrations -> sobe).
+# Fluxo so-banco (para desenvolver com hot reload): docker compose up -d
 
 services:
   oracle:
@@ -25,6 +24,20 @@ services:
       timeout: 5s
       retries: 30
 
+  # Grants de VPD (Row-Level Security) aplicados como SYS. Roda uma vez e sai.
+  # Idempotente: pode reexecutar. A API so sobe apos este passo concluir.
+  grants:
+    profiles: ["full"]
+    image: gvenzl/oracle-free:23-slim
+    container_name: poc-layout-grants
+    restart: "no"
+    depends_on:
+      oracle:
+        condition: service_healthy
+    volumes:
+      - ./scripts/grant-vpd.sql:/grant-vpd.sql:ro
+    entrypoint: ["bash","-c","sqlplus -s -L 'sys/oracle_sys_pw@oracle:1521/FREEPDB1 as sysdba' @/grant-vpd.sql"]
+
   # API + UI. Fica sob o profile "full" para nao subir no fluxo de dev (so Oracle).
   #   Dev  (so banco):  docker compose up -d
   #   Full (banco+API): docker compose --profile full up -d --build
@@ -35,6 +48,8 @@ services:
     depends_on:
       oracle:
         condition: service_healthy      # so sobe apos o Oracle ficar healthy
+      grants:
+        condition: service_completed_successfully   # e apos os grants de VPD
     environment:
       ORACLE_USER: app
       ORACLE_PASSWORD: app_pw

@@ -1,0 +1,5 @@
+# Normaliza fim de linha: LF no repositorio (evita warnings CRLF no Windows).
+* text=auto eol=lf
+# Scripts shell precisam de LF; .ps1 fica com CRLF (nativo do Windows).
+*.sh  text eol=lf
+*.ps1 text eol=crlf
