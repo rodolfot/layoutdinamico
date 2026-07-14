@@ -11,8 +11,11 @@
   .formsec .fields{display:grid;grid-template-columns:1fr;gap:.85rem;margin-top:.7rem}
   @media (min-width:560px){.formsec .fields{grid-template-columns:1fr 1fr}}
   .sens{color:var(--color-primary)}
-  #out{font-family:var(--font-mono);font-size:var(--text-xs);white-space:pre-wrap;word-break:break-word;
-    background:var(--color-surface-offset);border-radius:var(--r-md);padding:1rem;margin-top:1rem;color:var(--color-text-muted)}
+  .kv{display:flex;justify-content:space-between;gap:1rem;padding:.4rem 0;border-bottom:1px dashed var(--color-divider);font-size:var(--text-sm)}
+  .kv:last-child{border-bottom:0}.kv .lab{color:var(--color-text-faint)}.kv .val{font-weight:600}
+  ul.errs{margin:.4rem 0;padding-left:1.15rem}ul.errs li{margin:.2rem 0}
+  #result pre{font-family:var(--font-mono);font-size:var(--text-xs);white-space:pre-wrap;word-break:break-word;
+    background:var(--color-surface-offset);border-radius:var(--r-md);padding:.9rem;color:var(--color-text-muted);margin:.5rem 0 0}
 </style>
 </head>
 <body>
@@ -27,8 +30,7 @@
   <form id="form" class="reveal"></form>
   <div class="row" style="margin-top:1rem"><button class="btn btn-primary" id="submit" type="button">Salvar registro</button></div>
 
-  <p class="sec-title">Resposta</p>
-  <div id="out">—</div>
+  <div id="result" style="margin-top:1.3rem"></div>
 </main>
 
 <script src="auth.js"></script>
@@ -116,10 +118,46 @@
     const payload = collect();
     const res = await authFetch(`${API}/registros`, { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify(payload) });
     const data = await res.json();
-    document.getElementById("out").textContent = `POST /registros → ${res.status}\n` + JSON.stringify(data, null, 2);
-    if (res.ok) toast("Registro salvo (#" + data.id + ")");
-    else if (res.status === 403) toast("Sem permissão para cadastrar");
+    await renderResult(res.status, data);
   });
+
+  function fmtVal(f){
+    if (Array.isArray(f.value)) return f.value.join(", ");
+    if (f.dataType === "BOOLEAN") return f.value ? "Sim" : "Não";
+    return f.value;
+  }
+
+  async function renderResult(status, data){
+    const box = document.getElementById("result");
+    const raw = `<details style="margin-top:.7rem"><summary class="muted">detalhes técnicos (resposta da API)</summary><pre>POST /registros → ${status}\n${JSON.stringify(data, null, 2)}</pre></details>`;
+
+    if (status === 201){
+      toast("Registro salvo (#" + data.id + ")");
+      // busca o registro salvo para mostrar o que foi persistido
+      let saved = "";
+      try {
+        const view = await (await authFetch(`${API}/registros/${data.id}/view`)).json();
+        const rows = view.fields.filter(f=>f.value!==null && f.value!=="" && !(Array.isArray(f.value)&&!f.value.length))
+          .map(f=>`<div class="kv"><span class="lab">${f.label}</span><span class="val">${fmtVal(f)}</span></div>`).join("");
+        if (rows) saved = `<div class="card" style="margin-top:.8rem"><div class="sec-title" style="margin-top:0">Dados salvos</div>${rows}</div>`;
+      } catch {}
+      const extra = (data.unknownFieldsStored && data.unknownFieldsStored.length)
+        ? `<div class="call warn" style="margin-top:.8rem"><span class="k">Campos novos</span>${data.unknownFieldsStored.length} campo(s) fora do layout foram guardados e aguardam configuração na <a href="governanca.html">Governança</a>: ${data.unknownFieldsStored.map(x=>`<code>${x}</code>`).join(" ")}</div>` : "";
+      box.innerHTML = `<div class="call good"><span class="k">Registro criado</span>Salvo com o número <b>#${data.id}</b>.</div>${saved}${extra}
+        <div class="row" style="margin-top:.9rem"><a class="btn" href="consulta.html">Ver na consulta</a>
+        <button class="btn btn-primary" id="again" type="button">Cadastrar outro</button></div>${raw}`;
+      box.querySelector("#again").onclick = ()=>{ box.innerHTML=""; buildForm(); window.scrollTo({top:0,behavior:"smooth"}); };
+    } else if (status === 422){
+      box.innerHTML = `<div class="call crit"><span class="k">Não foi possível salvar</span>Corrija os campos abaixo:</div>
+        <ul class="errs">${(data.errors||[]).map(e=>`<li><b>${e.field}</b>: ${e.message}</li>`).join("")}</ul>${raw}`;
+    } else if (status === 403){
+      box.innerHTML = `<div class="call warn"><span class="k">Sem permissão</span>Seu perfil não pode cadastrar registros (entre como <b>editor</b> ou <b>admin</b>).</div>`;
+    } else if (status === 409){
+      box.innerHTML = `<div class="call crit"><span class="k">CPF duplicado</span>Já existe um registro com esse CPF neste tenant.</div>${raw}`;
+    } else {
+      box.innerHTML = `<div class="call crit"><span class="k">Erro ${status}</span>Não foi possível concluir.</div>${raw}`;
+    }
+  }
 
   buildForm();
 </script>
