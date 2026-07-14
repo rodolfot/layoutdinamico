@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Editor de campos — Layout Dinâmico</title>
+<link rel="stylesheet" href="app.css" />
+<style>
+  .bar{display:flex;gap:.6rem;align-items:center;flex-wrap:wrap;margin:1rem 0}
+  .bar input,.bar select{width:auto;min-width:120px}
+  table.edit{min-width:900px;font-size:var(--text-xs)}
+  table.edit td,table.edit th{padding:.35rem .45rem}
+  table.edit input,table.edit select{min-height:32px;padding:.25rem .4rem;font-size:var(--text-xs)}
+  .w60 input{width:64px}
+  .chk{text-align:center}.chk input{width:auto;min-height:auto}
+  .addpanel{margin-top:1.3rem}
+</style>
+</head>
+<body>
+<div id="appbar"></div>
+<main class="container page">
+  <p class="eyebrow reveal">Editor de campos</p>
+  <h1 class="reveal">Desenhar o formulário <span class="muted" style="font-size:var(--text-sm);font-weight:400">(somente versões DRAFT)</span></h1>
+
+  <div class="bar reveal">
+    Versão: <select id="verSel"></select>
+    <span class="badge" id="verInfo">—</span>
+  </div>
+  <div id="notdraft" class="call warn" hidden><span class="k">Somente leitura</span>
+    Esta versão não é DRAFT — os campos ficam bloqueados. Clone/crie uma DRAFT em <a href="versoes.html">Versões</a> para editar.</div>
+
+  <div class="tablecard reveal">
+    <table class="edit">
+      <thead><tr>
+        <th>Campo</th><th>Rótulo</th><th>Tipo</th><th>Item</th><th>Seção</th><th class="w60">Ordem</th>
+        <th class="chk">Obrig</th><th class="chk">Visív</th><th class="chk">Edit</th><th class="chk">Sens</th><th>Máscara</th><th></th>
+      </tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </div>
+
+  <div class="card addpanel reveal">
+    <h2>Adicionar campo</h2>
+    <div class="bar" style="margin-bottom:0">
+      <input id="nName" placeholder="logicalName (ex.: apelido)">
+      <input id="nLabel" placeholder="Rótulo">
+      <select id="nType"><option>STRING</option><option>NUMBER</option><option>BOOLEAN</option><option>DATE</option><option>ARRAY</option><option>OBJECT</option></select>
+      <select id="nItem" title="tipo do item (ARRAY)"><option value="">item —</option><option>STRING</option><option>NUMBER</option><option>BOOLEAN</option><option>DATE</option></select>
+      <input id="nSection" placeholder="Seção">
+      <input id="nOrder" type="number" placeholder="Ordem" value="100" style="width:90px">
+      <button class="btn btn-primary" id="btnAdd">Adicionar</button>
+    </div>
+  </div>
+</main>
+
+<script src="auth.js"></script>
+<script src="shell.js"></script>
+<script>
+  if (!requireLogin()) throw new Error("redirect");
+  const API = location.origin;
+  const H = () => ({ "Content-Type":"application/json" });
+  let currentVer = null, currentStatus = null;
+
+  async function loadVersions(){
+    const data = await (await authFetch(`${API}/layout-versions`)).json();
+    const sel = document.getElementById("verSel");
+    sel.innerHTML = data.versions.map(v=>`<option value="${v.versionId}">#${v.versionId} ${v.label} [${v.status}]</option>`).join("");
+    const wanted = new URLSearchParams(location.search).get("version");
+    const pick = data.versions.find(v=>String(v.versionId)===wanted) || data.versions.find(v=>v.status==="DRAFT") || data.versions[0];
+    if (pick){ sel.value = pick.versionId; selectVersion(pick.versionId, pick.status); }
+    sel.onchange = ()=>{ const v = data.versions.find(x=>x.versionId==sel.value); selectVersion(v.versionId, v.status); };
+  }
+
+  async function selectVersion(id, status){
+    currentVer = id; currentStatus = status;
+    const vi = document.getElementById("verInfo"); vi.textContent = status; vi.className = "badge " + status;
+    document.getElementById("notdraft").hidden = status === "DRAFT";
+    const data = await (await authFetch(`${API}/layout-versions/${id}/fields`)).json();
+    renderRows(data.fields, status === "DRAFT");
+  }
+
+  function renderRows(fields, editable){
+    const rows = document.getElementById("rows"); rows.innerHTML = "";
+    fields.forEach(f=> rows.appendChild(row(f, editable)));
+  }
+
+  function row(f, editable){
+    const tr = document.createElement("tr");
+    const dis = editable ? "" : "disabled";
+    const types = ["STRING","NUMBER","BOOLEAN","DATE","ARRAY","OBJECT"], items = ["","STRING","NUMBER","BOOLEAN","DATE"], masks = ["","cpf","email","partial","full"];
+    const opt = (arr,v)=> arr.map(o=>`<option ${o===(v||"")?"selected":""} value="${o}">${o||"—"}</option>`).join("");
+    const chk = (name,v)=> `<input type="checkbox" data-f="${name}" ${v?"checked":""} ${dis}>`;
+    tr.innerHTML = `
+      <td><code>${f.logicalName}</code></td>
+      <td><input type="text" data-f="label" value="${f.label ?? ""}" ${dis}></td>
+      <td><select data-f="dataType" ${dis}>${opt(types,f.dataType)}</select></td>
+      <td><select data-f="itemType" ${dis}>${opt(items,f.itemType)}</select></td>
+      <td><input type="text" data-f="section" value="${f.section ?? ""}" ${dis}></td>
+      <td class="w60"><input type="number" data-f="displayOrder" value="${f.displayOrder}" ${dis}></td>
+      <td class="chk">${chk("required",f.required)}</td>
+      <td class="chk">${chk("visible",f.visible)}</td>
+      <td class="chk">${chk("editable",f.editable)}</td>
+      <td class="chk">${chk("sensitive",f.sensitive)}</td>
+      <td><select data-f="maskStyle" ${dis}>${opt(masks,f.maskStyle)}</select></td>
+      <td>${editable ? `<div class="row"><button class="btn btn-sm btn-good" data-save="${f.fieldId}">Salvar</button><button class="btn btn-sm btn-danger" data-del="${f.fieldId}">×</button></div>` : ""}</td>`;
+    tr.querySelector("[data-save]")?.addEventListener("click", ()=> saveRow(tr, f.fieldId));
+    tr.querySelector("[data-del]")?.addEventListener("click", ()=> delRow(f.fieldId));
+    return tr;
+  }
+
+  function collect(tr){
+    const o = {};
+    tr.querySelectorAll("[data-f]").forEach(el=>{
+      const k = el.dataset.f;
+      if (el.type === "checkbox") o[k] = el.checked;
+      else if (el.type === "number") o[k] = Number(el.value);
+      else o[k] = el.value === "" ? null : el.value;
+    });
+    return o;
+  }
+  async function saveRow(tr, fieldId){
+    const res = await authFetch(`${API}/metadata/${fieldId}`, { method:"PUT", headers:H(), body: JSON.stringify(collect(tr)) });
+    toast(res.ok ? `Campo ${fieldId} salvo` : (res.status===403?"Sem permissão (admin)":"Falha ao salvar"));
+  }
+  async function delRow(fieldId){
+    const res = await authFetch(`${API}/metadata/${fieldId}`, { method:"DELETE", headers:H() });
+    toast(res.ok ? `Campo ${fieldId} removido` : "Falha ao remover");
+    selectVersion(currentVer, currentStatus);
+  }
+
+  document.getElementById("btnAdd").onclick = async ()=>{
+    if (currentStatus !== "DRAFT") return toast("Selecione uma versão DRAFT");
+    const body = { layoutVersion:currentVer,
+      logicalName: document.getElementById("nName").value.trim(),
+      label: document.getElementById("nLabel").value.trim() || document.getElementById("nName").value.trim(),
+      dataType: document.getElementById("nType").value, itemType: document.getElementById("nItem").value || null,
+      section: document.getElementById("nSection").value.trim() || null, displayOrder: Number(document.getElementById("nOrder").value) };
+    if (!body.logicalName) return toast("informe o logicalName");
+    const res = await authFetch(`${API}/metadata`, { method:"POST", headers:H(), body: JSON.stringify(body) });
+    toast(res.ok ? `Campo "${body.logicalName}" adicionado` : (res.status===403?"Sem permissão":"Falha ao adicionar"));
+    if (res.ok){ document.getElementById("nName").value = ""; document.getElementById("nLabel").value = ""; selectVersion(currentVer, currentStatus); }
+  };
+
+  loadVersions();
+</script>
+</body>
+</html>

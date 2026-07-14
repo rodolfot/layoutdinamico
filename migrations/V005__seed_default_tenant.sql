@@ -1,0 +1,59 @@
+-- V005 seed do tenant 'default': layout v1 + metadados (core, dinamicos, sensiveis, i18n, lista, condicional)
+
+INSERT INTO LAYOUT_VERSION (TENANT_ID, LABEL, STATUS) VALUES ('default', 'Layout Cadastro v1', 'ACTIVE');
+
+INSERT INTO FIELD_METADATA (TENANT_ID, LAYOUT_VERSION, LOGICAL_NAME, JSON_PATH, STORAGE, DATA_TYPE, ITEM_TYPE,
+       REQUIRED, VISIBLE, EDITABLE, SENSITIVE, MASK_STYLE, DISPLAY_ORDER, LABEL, LABEL_I18N, SECTION, VALIDATION, VISIBLE_WHEN, ACTIVE)
+VALUES ('default', (SELECT VERSION_ID FROM LAYOUT_VERSION WHERE TENANT_ID='default' AND LABEL='Layout Cadastro v1'),
+       'cpf', NULL, 'CORE', 'STRING', NULL,
+       1, 1, 1, 1, 'cpf', 10, 'CPF', JSON('{"pt":"CPF","en":"Taxpayer ID"}'), 'Identificacao',
+       JSON('{ "regex": "^[0-9]{11}$" }'), NULL, 1);
+
+INSERT INTO FIELD_METADATA (TENANT_ID, LAYOUT_VERSION, LOGICAL_NAME, JSON_PATH, STORAGE, DATA_TYPE, ITEM_TYPE,
+       REQUIRED, VISIBLE, EDITABLE, SENSITIVE, MASK_STYLE, DISPLAY_ORDER, LABEL, LABEL_I18N, SECTION, VALIDATION, VISIBLE_WHEN, ACTIVE)
+VALUES ('default', (SELECT VERSION_ID FROM LAYOUT_VERSION WHERE TENANT_ID='default' AND LABEL='Layout Cadastro v1'),
+       'nome', NULL, 'CORE', 'STRING', NULL,
+       1, 1, 1, 0, NULL, 20, 'Nome completo', JSON('{"pt":"Nome completo","en":"Full name"}'), 'Identificacao',
+       JSON('{ "min": 3, "max": 200 }'), NULL, 1);
+
+INSERT INTO FIELD_METADATA (TENANT_ID, LAYOUT_VERSION, LOGICAL_NAME, JSON_PATH, STORAGE, DATA_TYPE, ITEM_TYPE,
+       REQUIRED, VISIBLE, EDITABLE, SENSITIVE, MASK_STYLE, DISPLAY_ORDER, LABEL, LABEL_I18N, SECTION, VALIDATION, VISIBLE_WHEN, ACTIVE)
+VALUES ('default', (SELECT VERSION_ID FROM LAYOUT_VERSION WHERE TENANT_ID='default' AND LABEL='Layout Cadastro v1'),
+       'email', NULL, 'CORE', 'STRING', NULL,
+       0, 1, 1, 1, 'email', 30, 'E-mail', JSON('{"pt":"E-mail","en":"Email"}'), 'Contato',
+       JSON('{ "regex": "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$" }'), NULL, 1);
+
+INSERT INTO FIELD_METADATA (TENANT_ID, LAYOUT_VERSION, LOGICAL_NAME, JSON_PATH, STORAGE, DATA_TYPE, ITEM_TYPE,
+       REQUIRED, VISIBLE, EDITABLE, SENSITIVE, MASK_STYLE, DISPLAY_ORDER, LABEL, LABEL_I18N, SECTION, VALIDATION, VISIBLE_WHEN, ACTIVE)
+VALUES ('default', (SELECT VERSION_ID FROM LAYOUT_VERSION WHERE TENANT_ID='default' AND LABEL='Layout Cadastro v1'),
+       'rendaMensal', '$.rendaMensal', 'DYNAMIC', 'NUMBER', NULL,
+       0, 1, 1, 1, 'full', 40, 'Renda mensal (R$)', JSON('{"pt":"Renda mensal (R$)","en":"Monthly income"}'), 'Financeiro',
+       JSON('{ "min": 0 }'), NULL, 1);
+
+INSERT INTO FIELD_METADATA (TENANT_ID, LAYOUT_VERSION, LOGICAL_NAME, JSON_PATH, STORAGE, DATA_TYPE, ITEM_TYPE,
+       REQUIRED, VISIBLE, EDITABLE, SENSITIVE, MASK_STYLE, DISPLAY_ORDER, LABEL, LABEL_I18N, SECTION, VALIDATION, VISIBLE_WHEN, ACTIVE)
+VALUES ('default', (SELECT VERSION_ID FROM LAYOUT_VERSION WHERE TENANT_ID='default' AND LABEL='Layout Cadastro v1'),
+       'estadoCivil', '$.estadoCivil', 'DYNAMIC', 'STRING', NULL,
+       0, 1, 1, 0, NULL, 50, 'Estado civil', JSON('{"pt":"Estado civil","en":"Marital status"}'), 'Pessoal',
+       JSON('{ "enum": ["SOLTEIRO","CASADO","DIVORCIADO","VIUVO"] }'), NULL, 1);
+
+INSERT INTO FIELD_METADATA (TENANT_ID, LAYOUT_VERSION, LOGICAL_NAME, JSON_PATH, STORAGE, DATA_TYPE, ITEM_TYPE,
+       REQUIRED, VISIBLE, EDITABLE, SENSITIVE, MASK_STYLE, DISPLAY_ORDER, LABEL, LABEL_I18N, SECTION, VALIDATION, VISIBLE_WHEN, ACTIVE)
+VALUES ('default', (SELECT VERSION_ID FROM LAYOUT_VERSION WHERE TENANT_ID='default' AND LABEL='Layout Cadastro v1'),
+       'nomeConjuge', '$.nomeConjuge', 'DYNAMIC', 'STRING', NULL,
+       0, 1, 1, 0, NULL, 55, 'Nome do conjuge', JSON('{"pt":"Nome do conjuge","en":"Spouse name"}'), 'Pessoal',
+       NULL, JSON('{ "field": "estadoCivil", "equals": "CASADO" }'), 1);
+
+INSERT INTO FIELD_METADATA (TENANT_ID, LAYOUT_VERSION, LOGICAL_NAME, JSON_PATH, STORAGE, DATA_TYPE, ITEM_TYPE,
+       REQUIRED, VISIBLE, EDITABLE, SENSITIVE, MASK_STYLE, DISPLAY_ORDER, LABEL, LABEL_I18N, SECTION, VALIDATION, VISIBLE_WHEN, ACTIVE)
+VALUES ('default', (SELECT VERSION_ID FROM LAYOUT_VERSION WHERE TENANT_ID='default' AND LABEL='Layout Cadastro v1'),
+       'possuiVeiculo', '$.possuiVeiculo', 'DYNAMIC', 'BOOLEAN', NULL,
+       0, 1, 1, 0, NULL, 60, 'Possui veiculo?', JSON('{"pt":"Possui veiculo?","en":"Owns a vehicle?"}'), 'Pessoal',
+       NULL, NULL, 1);
+
+INSERT INTO FIELD_METADATA (TENANT_ID, LAYOUT_VERSION, LOGICAL_NAME, JSON_PATH, STORAGE, DATA_TYPE, ITEM_TYPE,
+       REQUIRED, VISIBLE, EDITABLE, SENSITIVE, MASK_STYLE, DISPLAY_ORDER, LABEL, LABEL_I18N, SECTION, VALIDATION, VISIBLE_WHEN, ACTIVE)
+VALUES ('default', (SELECT VERSION_ID FROM LAYOUT_VERSION WHERE TENANT_ID='default' AND LABEL='Layout Cadastro v1'),
+       'telefones', '$.telefones', 'DYNAMIC', 'ARRAY', 'STRING',
+       0, 1, 1, 0, NULL, 70, 'Telefones', JSON('{"pt":"Telefones","en":"Phones"}'), 'Contato',
+       JSON('{ "itemRegex": "^[0-9]{10,11}$" }'), NULL, 1);

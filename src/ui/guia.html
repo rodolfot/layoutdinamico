@@ -1,0 +1,528 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Guia de uso — Layout Dinâmico</title>
+<link rel="preconnect" href="https://api.fontshare.com" crossorigin />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://api.fontshare.com/v2/css?f[]=general-sans@500,600,700&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Work+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  :root, [data-theme="light"] {
+    --color-bg:#f7f6f2; --color-surface:#f9f8f5; --color-surface-2:#fbfbf9; --color-surface-offset:#f3f0ec;
+    --color-text:#28251d; --color-text-muted:#7a7974; --color-text-faint:#bab9b4;
+    --color-primary:#01696f; --color-primary-hover:#0c4e54; --color-primary-soft:#dcebeb;
+    --color-divider:#dcd9d5; --color-border:#d4d1ca;
+    --good:#2f7d5b; --good-soft:#e3f0e9; --warn:#8f6510; --warn-soft:#f5ecd6; --crit:#a63a2a; --crit-soft:#f4e3de;
+    --shadow-sm:0 1px 2px oklch(0.2 0.01 80 / .06); --shadow-md:0 4px 12px oklch(0.2 0.01 80 / .08);
+    --shadow-lg:0 12px 32px oklch(0.2 0.01 80 / .12);
+  }
+  @media (prefers-color-scheme:dark){ :root:not([data-theme]){
+    --color-bg:#171614; --color-surface:#1c1b19; --color-surface-2:#201f1d; --color-surface-offset:#1d1c1a;
+    --color-text:#cdccca; --color-text-muted:#797876; --color-text-faint:#5a5957;
+    --color-primary:#4f98a3; --color-primary-hover:#227f8b; --color-primary-soft:#173037;
+    --color-divider:#262523; --color-border:#393836;
+    --good:#5fb489; --good-soft:#14251d; --warn:#d7a34e; --warn-soft:#2a2210; --crit:#e08a7b; --crit-soft:#2b1712;
+    --shadow-sm:0 1px 2px oklch(0 0 0 / .2); --shadow-md:0 4px 12px oklch(0 0 0 / .3); --shadow-lg:0 12px 32px oklch(0 0 0 / .4);
+  }}
+  [data-theme="dark"]{
+    --color-bg:#171614; --color-surface:#1c1b19; --color-surface-2:#201f1d; --color-surface-offset:#1d1c1a;
+    --color-text:#cdccca; --color-text-muted:#797876; --color-text-faint:#5a5957;
+    --color-primary:#4f98a3; --color-primary-hover:#227f8b; --color-primary-soft:#173037;
+    --color-divider:#262523; --color-border:#393836;
+    --good:#5fb489; --good-soft:#14251d; --warn:#d7a34e; --warn-soft:#2a2210; --crit:#e08a7b; --crit-soft:#2b1712;
+    --shadow-sm:0 1px 2px oklch(0 0 0 / .2); --shadow-md:0 4px 12px oklch(0 0 0 / .3); --shadow-lg:0 12px 32px oklch(0 0 0 / .4);
+  }
+  :root{
+    --text-xs:clamp(.75rem,.7rem + .25vw,.85rem);
+    --text-sm:clamp(.875rem,.82rem + .3vw,.98rem);
+    --text-base:clamp(1rem,.96rem + .2vw,1.1rem);
+    --text-lg:clamp(1.15rem,1rem + .7vw,1.45rem);
+    --text-xl:clamp(1.5rem,1.15rem + 1.4vw,2.15rem);
+    --text-2xl:clamp(2rem,1.3rem + 2.6vw,3.4rem);
+    --sp-2:.5rem;--sp-3:.75rem;--sp-4:1rem;--sp-6:1.5rem;--sp-8:2rem;--sp-12:3rem;--sp-16:4rem;--sp-24:6rem;
+    --ease:cubic-bezier(.16,1,.3,1);
+    --r-sm:.4rem;--r-md:.6rem;--r-lg:.9rem;--r-xl:1.15rem;
+    --font-display:"General Sans","Work Sans",sans-serif;
+    --font-body:"Work Sans",system-ui,sans-serif;
+    --font-mono:"JetBrains Mono",ui-monospace,monospace;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--color-bg);color:var(--color-text);font-family:var(--font-body);
+    font-size:var(--text-base);line-height:1.62;-webkit-font-smoothing:antialiased}
+  @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}
+    *,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+  a{color:var(--color-primary);text-decoration:none}
+  a:hover{text-decoration:underline}
+  :focus-visible{outline:2px solid var(--color-primary);outline-offset:3px;border-radius:5px}
+  ::selection{background:var(--color-primary-soft)}
+  .mono{font-family:var(--font-mono)}
+  .tok{font-family:var(--font-mono);font-size:.84em;background:var(--color-surface-offset);
+    border:1px solid oklch(from var(--color-text) l c h / .1);border-radius:5px;padding:.06em .42em;color:var(--color-text)}
+  .eyebrow{font-family:var(--font-mono);font-size:var(--text-xs);letter-spacing:.18em;text-transform:uppercase;
+    color:var(--color-primary);font-weight:500}
+
+  .wrap{max-width:1200px;margin-inline:auto;padding-inline:clamp(1rem,4vw,2rem)}
+
+  /* header */
+  header.top{position:sticky;top:0;z-index:20;backdrop-filter:blur(10px);
+    background:oklch(from var(--color-bg) l c h / .82);border-bottom:1px solid var(--color-divider)}
+  .top-in{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:.7rem 0}
+  .brand{display:flex;align-items:center;gap:.6rem;font-family:var(--font-display);font-weight:600;
+    font-size:var(--text-sm);color:var(--color-text)}
+  .brand svg{display:block}
+  .top-actions{display:flex;align-items:center;gap:.5rem}
+  .ghost{display:inline-flex;align-items:center;gap:.4rem;min-height:44px;padding:.5rem .9rem;border-radius:999px;
+    border:1px solid var(--color-border);background:var(--color-surface);color:var(--color-text);
+    font-family:var(--font-body);font-weight:500;font-size:var(--text-sm);cursor:pointer;
+    transition:transform 180ms var(--ease),box-shadow 180ms var(--ease),background 180ms var(--ease)}
+  .ghost:hover{box-shadow:var(--shadow-sm);text-decoration:none}
+  .ghost:active{transform:scale(.97)}
+  .icon-btn{width:44px;height:44px;padding:0;justify-content:center}
+  .cta{background:var(--color-primary);color:#fff;border-color:transparent}
+  [data-theme="dark"] .cta,:root:not([data-theme]) .cta{color:#06110f}
+  @media (prefers-color-scheme:dark){:root:not([data-theme]) .cta{color:#06110f}}
+  .cta:hover{background:var(--color-primary-hover)}
+  .sun{display:none}[data-theme="dark"] .sun{display:block}[data-theme="dark"] .moon{display:none}
+  @media (prefers-color-scheme:dark){:root:not([data-theme]) .sun{display:block}:root:not([data-theme]) .moon{display:none}}
+
+  /* hero */
+  .hero{padding-block:clamp(2.5rem,7vw,5rem) clamp(1.5rem,4vw,2.5rem)}
+  .hero h1{font-family:var(--font-display);font-weight:700;font-size:var(--text-2xl);line-height:1.03;
+    letter-spacing:-.02em;margin:.7rem 0 .5rem;text-wrap:balance;max-width:16ch}
+  .hero .lede{font-size:var(--text-lg);color:var(--color-text-muted);max-width:56ch;margin:0 0 var(--sp-6);text-wrap:pretty}
+  .hero .lede b{color:var(--color-text);font-weight:600}
+  .hero-cta{display:flex;flex-wrap:wrap;gap:.6rem;align-items:center}
+
+  /* stats */
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(150px,100%),1fr));gap:1px;
+    background:var(--color-divider);border:1px solid var(--color-divider);border-radius:var(--r-lg);
+    overflow:hidden;margin-top:var(--sp-8);box-shadow:var(--shadow-sm)}
+  .stat{background:var(--color-surface);padding:1.1rem 1.3rem}
+  .stat .num{font-family:var(--font-display);font-weight:600;font-size:var(--text-xl);line-height:1;
+    color:var(--color-primary);font-variant-numeric:tabular-nums}
+  .stat .lbl{font-size:var(--text-xs);color:var(--color-text-muted);margin-top:.3rem;letter-spacing:.02em}
+
+  /* layout */
+  .grid{display:grid;grid-template-columns:1fr;gap:clamp(1.5rem,4vw,3rem);padding-block:var(--sp-8) var(--sp-24)}
+  @media (min-width:1024px){.grid{grid-template-columns:236px 1fr;gap:3.5rem}}
+
+  nav.toc{font-size:var(--text-sm)}
+  @media (min-width:1024px){nav.toc{position:sticky;top:5rem;align-self:start}}
+  nav.toc .lbl{font-family:var(--font-mono);font-size:var(--text-xs);letter-spacing:.14em;text-transform:uppercase;
+    color:var(--color-text-faint);padding:0 .7rem;margin:0 0 .5rem}
+  nav.toc ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
+  @media (max-width:1023px){nav.toc ol{flex-direction:row;overflow-x:auto;gap:.4rem;padding-bottom:.4rem;
+    scrollbar-width:none}nav.toc ol::-webkit-scrollbar{display:none}}
+  nav.toc a{display:flex;align-items:center;gap:.65rem;min-height:44px;padding:.4rem .7rem;border-radius:var(--r-md);
+    color:var(--color-text-muted);font-weight:500;white-space:nowrap;transition:background 180ms var(--ease),color 180ms var(--ease)}
+  nav.toc a .n{font-family:var(--font-mono);font-size:var(--text-xs);color:var(--color-text-faint);min-width:1.2em;text-align:center}
+  nav.toc a:hover{background:var(--color-surface-offset);color:var(--color-text);text-decoration:none}
+  nav.toc a.active{background:var(--color-primary-soft);color:var(--color-primary);font-weight:600}
+  nav.toc a.active .n{color:var(--color-primary)}
+
+  main{min-width:0}
+  .step{padding-block:clamp(1.8rem,4vw,2.6rem);border-bottom:1px solid var(--color-divider)}
+  .step:first-child{padding-top:0}
+  .step:last-of-type{border-bottom:0}
+  .step-head{display:flex;align-items:center;gap:.85rem;margin-bottom:.4rem}
+  .badge{font-family:var(--font-mono);font-weight:500;font-size:var(--text-sm);color:#fff;
+    background:var(--color-primary);border-radius:var(--r-md);min-width:2.1rem;height:2.1rem;
+    display:inline-flex;align-items:center;justify-content:center;flex:none;box-shadow:var(--shadow-sm)}
+  [data-theme="dark"] .badge,:root:not([data-theme]) .badge{color:#06110f}
+  @media (prefers-color-scheme:dark){:root:not([data-theme]) .badge{color:#06110f}}
+  .step h2{font-family:var(--font-display);font-weight:600;font-size:var(--text-xl);line-height:1.14;
+    letter-spacing:-.01em;margin:0;text-wrap:balance}
+  .purpose{color:var(--color-text-muted);margin:.5rem 0 1.1rem;max-width:64ch;text-wrap:pretty}
+  h3.sub{font-family:var(--font-display);font-weight:600;font-size:var(--text-base);margin:1.3rem 0 .5rem}
+
+  ol.steps{counter-reset:s;list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:.6rem}
+  ol.steps>li{counter-increment:s;position:relative;padding-left:2.3rem}
+  ol.steps>li::before{content:counter(s);position:absolute;left:0;top:0;font-family:var(--font-mono);
+    font-size:var(--text-xs);font-weight:500;color:var(--color-text-muted);background:var(--color-surface-offset);
+    border:1px solid var(--color-border);width:1.65rem;height:1.65rem;border-radius:50%;display:flex;
+    align-items:center;justify-content:center}
+  ul.plain{margin:.3rem 0;padding-left:1.15rem}ul.plain li{margin:.25rem 0}
+  .req{color:var(--crit);font-weight:700}
+
+  .call{border:1px solid oklch(from var(--color-text) l c h / .1);border-radius:var(--r-lg);
+    padding:1rem 1.15rem;margin:1.2rem 0;font-size:var(--text-sm);color:var(--color-text-muted);background:var(--color-surface)}
+  .call b{color:var(--color-text)}
+  .call .k{font-family:var(--font-mono);font-size:var(--text-xs);letter-spacing:.12em;text-transform:uppercase;
+    display:inline-flex;align-items:center;gap:.4rem;margin-bottom:.4rem;font-weight:500}
+  .call.tip{background:var(--color-primary-soft);border-color:transparent}.call.tip .k{color:var(--color-primary)}
+  .call.good{background:var(--good-soft);border-color:transparent}.call.good .k{color:var(--good)}
+  .call.warn{background:var(--warn-soft);border-color:transparent}.call.warn .k{color:var(--warn)}
+  .call .k::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
+
+  .tablecard{overflow-x:auto;border:1px solid var(--color-border);border-radius:var(--r-lg);
+    box-shadow:var(--shadow-sm);background:var(--color-surface);margin:1.2rem 0}
+  table{border-collapse:collapse;width:100%;min-width:520px;font-size:var(--text-sm)}
+  th,td{text-align:left;padding:.85rem 1.1rem;border-bottom:1px solid var(--color-divider);vertical-align:top}
+  thead th{font-family:var(--font-mono);font-size:var(--text-xs);letter-spacing:.1em;text-transform:uppercase;
+    color:var(--color-text-faint);background:var(--color-surface-offset);font-weight:500}
+  tbody tr:last-child td{border-bottom:0}
+  .role{font-family:var(--font-mono);font-weight:500;color:var(--color-primary)}
+  .pw{font-family:var(--font-mono);color:var(--color-text-faint);font-size:.86em}
+
+  /* screen mocks */
+  .mock{background:var(--color-surface-2);border:1px solid var(--color-border);border-radius:var(--r-lg);
+    box-shadow:var(--shadow-md);overflow:hidden;margin:1.3rem 0;max-width:440px;
+    transition:transform 220ms var(--ease),box-shadow 220ms var(--ease)}
+  .mock:hover{transform:translateY(-3px);box-shadow:var(--shadow-lg)}
+  .mock .bar{display:flex;align-items:center;gap:.4rem;padding:.55rem .8rem;background:var(--color-surface-offset);
+    border-bottom:1px solid var(--color-divider)}
+  .mock .bar i{width:9px;height:9px;border-radius:50%;background:var(--color-border)}
+  .mock .bar .t{font-family:var(--font-mono);font-size:var(--text-xs);color:var(--color-text-faint);margin-left:.4rem}
+  .mock .body{padding:1.05rem 1.15rem;display:flex;flex-direction:column;gap:.7rem}
+  .fld{display:flex;flex-direction:column;gap:.3rem;opacity:0;transform:translateY(8px)}
+  .mock.in .fld{opacity:1;transform:none;transition:opacity 420ms var(--ease),transform 420ms var(--ease)}
+  .mock.in .fld:nth-child(1){transition-delay:.05s}.mock.in .fld:nth-child(2){transition-delay:.16s}
+  .mock.in .fld:nth-child(3){transition-delay:.27s}.mock.in .fld:nth-child(4){transition-delay:.38s}
+  .fld .lab{font-size:var(--text-xs);color:var(--color-text-faint);display:flex;align-items:center;gap:.35rem}
+  .fld .inp{min-height:2rem;border:1px solid var(--color-border);border-radius:var(--r-sm);background:var(--color-surface);
+    display:flex;align-items:center;padding:0 .65rem;font-size:.85rem;color:var(--color-text-muted);font-family:var(--font-mono)}
+  .btnmock{align-self:flex-start;background:var(--color-primary);color:#fff;border-radius:var(--r-sm);
+    padding:.5rem 1rem;font-weight:600;font-size:var(--text-sm);margin-top:.25rem;opacity:0;transform:translateY(8px)}
+  [data-theme="dark"] .btnmock,:root:not([data-theme]) .btnmock{color:#06110f}
+  @media (prefers-color-scheme:dark){:root:not([data-theme]) .btnmock{color:#06110f}}
+  .mock.in .btnmock{opacity:1;transform:none;transition:opacity 420ms var(--ease) .5s,transform 420ms var(--ease) .5s}
+  .maskchip{font-family:var(--font-mono);background:var(--warn-soft);color:var(--warn);
+    border:1px solid oklch(from var(--warn) l c h / .3);border-radius:var(--r-sm);padding:.05rem .45rem;font-size:.82rem}
+  .kv{display:flex;justify-content:space-between;gap:1rem;padding:.45rem 0;border-bottom:1px dashed var(--color-divider);font-size:.88rem}
+  .kv:last-child{border-bottom:0}.kv .k2{color:var(--color-text-faint)}.kv .v2{font-family:var(--font-mono);color:var(--color-text)}
+
+  .pillrow{display:flex;flex-wrap:wrap;gap:.5rem;margin-top:.4rem}
+  .pill{font-family:var(--font-mono);font-size:var(--text-xs);border-radius:999px;padding:.3rem .8rem;
+    border:1px solid var(--color-border);background:var(--color-surface);color:var(--color-text-muted)}
+
+  details.faq{border:1px solid var(--color-border);border-radius:var(--r-lg);background:var(--color-surface);
+    margin:.55rem 0;overflow:hidden;transition:box-shadow 180ms var(--ease)}
+  details.faq[open]{box-shadow:var(--shadow-sm)}
+  details.faq summary{cursor:pointer;padding:1rem 1.15rem;font-weight:600;list-style:none;min-height:44px;
+    display:flex;justify-content:space-between;align-items:center;gap:1rem;font-family:var(--font-display)}
+  details.faq summary::-webkit-details-marker{display:none}
+  details.faq summary::after{content:"+";font-family:var(--font-mono);color:var(--color-primary);font-size:1.25rem;flex:none;
+    transition:transform 180ms var(--ease)}
+  details.faq[open] summary::after{content:"−"}
+  details.faq .ans{padding:0 1.15rem 1.05rem;color:var(--color-text-muted);font-size:var(--text-sm)}
+
+  footer{border-top:1px solid var(--color-divider);padding-block:2rem 3rem;color:var(--color-text-faint);
+    font-size:var(--text-sm);display:flex;flex-wrap:wrap;gap:.8rem;justify-content:space-between;align-items:center}
+
+  .reveal{opacity:0;transform:translateY(20px)}
+  .reveal.in{opacity:1;transform:none;transition:opacity 620ms var(--ease),transform 620ms var(--ease)}
+</style>
+</head>
+<body>
+  <header class="top">
+    <div class="wrap top-in">
+      <a class="brand" href="#topo" aria-label="Layout Dinâmico — início">
+        <svg width="26" height="26" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+          <rect x="1.2" y="1.2" width="29.6" height="29.6" rx="8" stroke="var(--color-primary)" stroke-width="2"/>
+          <rect x="7" y="8" width="12" height="2.6" rx="1.3" fill="var(--color-primary)"/>
+          <rect x="7" y="14.7" width="18" height="2.6" rx="1.3" fill="var(--color-primary)" opacity=".55"/>
+          <rect id="mk" x="7" y="21.4" width="9" height="2.6" rx="1.3" fill="var(--color-primary)"/>
+        </svg>
+        Layout Dinâmico
+      </a>
+      <div class="top-actions">
+        <button class="ghost icon-btn" id="theme" type="button" aria-label="Alternar tema claro/escuro">
+          <svg class="moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>
+          <svg class="sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2v2.5M12 19.5V22M4.2 4.2l1.8 1.8M18 18l1.8 1.8M2 12h2.5M19.5 12H22M4.2 19.8 6 18M18 6l1.8-1.8"/></svg>
+        </button>
+        <a class="ghost cta" href="/ui/login.html">Abrir o sistema</a>
+      </div>
+    </div>
+  </header>
+
+  <div class="wrap" id="topo">
+    <section class="hero">
+      <p class="eyebrow reveal">Guia de uso · primeiro contato</p>
+      <h1 class="reveal">Um cadastro que você mesmo molda</h1>
+      <p class="lede reveal">Os campos deste sistema são <b>configuráveis pela própria tela</b> — você
+        adiciona, esconde, reordena ou torna obrigatório qualquer campo sem programar. Ele ainda
+        <b>protege dados sensíveis</b>, <b>guarda o histórico</b> de tudo e <b>separa os dados por cliente</b>.</p>
+      <div class="hero-cta reveal">
+        <a class="ghost cta" href="#entrar">Começar pelo passo 1</a>
+        <span class="tok">http://localhost:3000</span>
+      </div>
+      <div class="stats reveal" id="stats">
+        <div class="stat"><div class="num" data-count="8">0</div><div class="lbl">passos guiados</div></div>
+        <div class="stat"><div class="num" data-count="6">0</div><div class="lbl">telas do sistema</div></div>
+        <div class="stat"><div class="num" data-count="3">0</div><div class="lbl">perfis de acesso</div></div>
+        <div class="stat"><div class="num" data-count="0" data-suffix=" código">0</div><div class="lbl">para criar um campo</div></div>
+      </div>
+    </section>
+
+    <div class="grid">
+      <nav class="toc" aria-label="Sumário">
+        <p class="lbl">Passos</p>
+        <ol>
+          <li><a href="#inicio"><span class="n">0</span> Antes de começar</a></li>
+          <li><a href="#entrar"><span class="n">1</span> Entrar</a></li>
+          <li><a href="#painel"><span class="n">2</span> Painel</a></li>
+          <li><a href="#cadastrar"><span class="n">3</span> Cadastrar</a></li>
+          <li><a href="#consultar"><span class="n">4</span> Consultar</a></li>
+          <li><a href="#governanca"><span class="n">5</span> Campo novo</a></li>
+          <li><a href="#versoes"><span class="n">6</span> Versões</a></li>
+          <li><a href="#editor"><span class="n">7</span> Editor</a></li>
+          <li><a href="#auditoria"><span class="n">8</span> Auditoria</a></li>
+          <li><a href="#faq"><span class="n">?</span> Perguntas</a></li>
+        </ol>
+      </nav>
+
+      <main>
+        <section class="step reveal" id="inicio">
+          <div class="step-head"><span class="badge">0</span><h2>Antes de começar</h2></div>
+          <p class="purpose">Abra <span class="tok">http://localhost:3000</span> no navegador — você cai na
+            tela de <b>login</b>. Cada usuário enxerga o sistema de um jeito. Comece pelo <span class="tok">admin</span>
+            para ver tudo, depois entre como <span class="tok">viewer</span> para sentir a diferença.</p>
+          <div class="tablecard">
+            <table>
+              <thead><tr><th>Usuário</th><th>Senha</th><th>O que pode fazer</th></tr></thead>
+              <tbody>
+                <tr><td class="role">admin</td><td class="pw">admin123</td><td>Tudo: cadastrar, mudar o layout e <b>ver dados sensíveis sem máscara</b>.</td></tr>
+                <tr><td class="role">editor</td><td class="pw">editor123</td><td>Cadastrar e editar registros/campos — mas <b>vê dados sensíveis mascarados</b>.</td></tr>
+                <tr><td class="role">viewer</td><td class="pw">viewer123</td><td>Apenas <b>consultar</b> (tudo mascarado).</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="call tip"><span class="k">Conceito · Tenant</span>
+            “Tenant” é o cliente/empresa. Aqui há dois — <span class="tok">default</span> e <span class="tok">acme</span> —
+            e <b>um nunca vê os dados do outro</b>.</div>
+        </section>
+
+        <section class="step reveal" id="entrar">
+          <div class="step-head"><span class="badge">1</span><h2>Entrar</h2></div>
+          <p class="purpose">A porta de entrada. Sem login, nada é acessível — e cada ação fica ligada a quem a fez.</p>
+          <ol class="steps">
+            <li>Deixe <b>Tenant</b> = <span class="tok">default</span>.</li>
+            <li>Digite o usuário <span class="tok">admin</span> e a senha <span class="tok">admin123</span>.</li>
+            <li>Clique <b>Entrar</b> — você vai para o Painel. No topo aparece quem você é e o link <b>sair</b>.</li>
+          </ol>
+          <div class="mock" data-mock aria-hidden="true">
+            <div class="bar"><i></i><i></i><i></i><span class="t">login</span></div>
+            <div class="body">
+              <div class="fld"><span class="lab">Tenant</span><span class="inp">default</span></div>
+              <div class="fld"><span class="lab">Usuário</span><span class="inp">admin</span></div>
+              <div class="fld"><span class="lab">Senha</span><span class="inp">••••••••</span></div>
+              <span class="btnmock">Entrar</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="step reveal" id="painel">
+          <div class="step-head"><span class="badge">2</span><h2>O Painel (visão geral)</h2></div>
+          <p class="purpose">Seu ponto de partida: mostra o estado do sistema num relance e dá acesso a tudo.</p>
+          <ul class="plain">
+            <li><b>Layout ativo</b> — qual conjunto de campos está valendo agora.</li>
+            <li><b>Indicadores</b> — quantos registros, quantas versões e quantos <b>campos pendentes</b> (novos, à espera de configuração).</li>
+            <li><b>Atividade recente</b> — as últimas ações, com quem fez.</li>
+          </ul>
+          <div class="pillrow">
+            <span class="pill">Cadastro</span><span class="pill">Consulta</span><span class="pill">Governança</span>
+            <span class="pill">Versões</span><span class="pill">Editor</span><span class="pill">Auditoria</span>
+          </div>
+          <p class="purpose" style="margin-top:1rem">Esses atalhos levam a cada área — vamos por eles.</p>
+        </section>
+
+        <section class="step reveal" id="cadastrar">
+          <div class="step-head"><span class="badge">3</span><h2>Cadastrar um registro</h2></div>
+          <p class="purpose">O formulário <b>não é fixo</b>: ele se monta sozinho a partir da configuração de
+            campos. Se amanhã alguém adicionar um campo, ele aparece aqui automaticamente.</p>
+          <ol class="steps">
+            <li>Preencha os campos. Os com <span class="req">∗</span> são <b>obrigatórios</b> (ex.: CPF, Nome).</li>
+            <li>Campos com <b>cadeado</b> são <b>sensíveis</b> — serão protegidos ao exibir.</li>
+            <li>Alguns campos são <b>inteligentes</b>: <span class="tok">Estado civil = Casado</span> faz surgir
+              <b>Nome do cônjuge</b>; <b>Telefones</b> aceita vários valores separados por vírgula.</li>
+            <li>Clique <b>Salvar</b>. Faltou um obrigatório? O sistema <b>avisa o erro</b> em vez de gravar errado.</li>
+          </ol>
+          <div class="mock" data-mock aria-hidden="true">
+            <div class="bar"><i></i><i></i><i></i><span class="t">cadastro · monta-se sozinho</span></div>
+            <div class="body">
+              <div class="fld"><span class="lab">CPF <span class="req">∗</span> · sensível</span><span class="inp">123.456.789-01</span></div>
+              <div class="fld"><span class="lab">Nome completo <span class="req">∗</span></span><span class="inp">Maria Silva</span></div>
+              <div class="fld"><span class="lab">Telefones</span><span class="inp">11999998888, 1133334444</span></div>
+              <span class="btnmock">Salvar</span>
+            </div>
+          </div>
+          <div class="call good"><span class="k">Experimente</span>
+            Envie um campo que <b>não existe</b> no formulário. O sistema <b>aceita e guarda mesmo assim</b> —
+            e ele vira um “pendente” para configurar depois. É isso que dá flexibilidade sem quebrar nada.</div>
+        </section>
+
+        <section class="step reveal" id="consultar">
+          <div class="step-head"><span class="badge">4</span><h2>Consultar registros</h2></div>
+          <p class="purpose">Ver o que foi cadastrado, já organizado como a configuração manda.</p>
+          <ol class="steps">
+            <li>À esquerda, a <b>lista</b>. Clique num registro para abrir.</li>
+            <li>À direita, os dados aparecem <b>por seção</b>, na ordem e com os rótulos definidos.</li>
+            <li><b>LGPD:</b> como <span class="tok">admin</span> você vê os valores reais; como <span class="tok">viewer</span>,
+              CPF/e-mail/renda vêm <b>mascarados</b>. Quem decide é o seu perfil — não um botão.</li>
+            <li>Abra <b>Histórico</b> para ver a linha do tempo do registro (criação, edições, exclusão).</li>
+          </ol>
+          <div class="mock" data-mock aria-hidden="true">
+            <div class="bar"><i></i><i></i><i></i><span class="t">consulta · como viewer</span></div>
+            <div class="body">
+              <div class="fld"><div class="kv"><span class="k2">CPF</span><span class="v2"><span class="maskchip">*******8901</span></span></div></div>
+              <div class="fld"><div class="kv"><span class="k2">E-mail</span><span class="v2"><span class="maskchip">m**********@ex.com</span></span></div></div>
+              <div class="fld"><div class="kv"><span class="k2">Nome</span><span class="v2">Maria Silva</span></div></div>
+            </div>
+          </div>
+          <div class="call warn"><span class="k">Bom saber</span>
+            Excluir é <b>lógico</b>: o registro some das listas, mas o histórico é preservado.</div>
+        </section>
+
+        <section class="step reveal" id="governanca">
+          <div class="step-head"><span class="badge">5</span><h2>Adicionar um campo novo — sem programar</h2></div>
+          <p class="purpose">A ideia central do produto. Quando um campo novo chega e ainda não está configurado,
+            ele aparece na <b>Governança</b> como <b>pendente</b>, com quantas vezes surgiu e um exemplo do valor.</p>
+          <h3 class="sub">Para cada pendente, você decide:</h3>
+          <ul class="plain">
+            <li><b>Aprovar</b> — defina rótulo, tipo, seção, ordem e as opções (visível, editável, obrigatório).
+              <b>Na hora</b>, o campo passa a aparecer no cadastro e na consulta.</li>
+            <li><b>Ignorar</b> — tira da fila. O dado que já chegou <b>não é apagado</b>, só deixa de ser sugerido.</li>
+          </ul>
+          <div class="call tip"><span class="k">Por que importa</span>
+            Dá para <b>evoluir o formulário pela tela</b>, sem alterar banco nem publicar uma nova versão do sistema.</div>
+        </section>
+
+        <section class="step reveal" id="versoes">
+          <div class="step-head"><span class="badge">6</span><h2>Evoluir o layout com segurança (Versões)</h2></div>
+          <p class="purpose">Mudança grande se faz num <b>rascunho</b> e só então publica — assim nada muda no ar por engano.</p>
+          <ol class="steps">
+            <li><b>Criar</b> uma versão marcando <b>clonar</b> a ativa — ela nasce como <span class="tok">DRAFT</span> (rascunho).</li>
+            <li>Clicar em <b>editar campos</b> na linha do rascunho e ajustar (vai para o Editor, passo 7).</li>
+            <li><b>Comparar</b> o rascunho com a ativa: o sistema mostra <b>adicionado / removido / alterado</b>.</li>
+            <li><b>Ativar</b> o rascunho. Só então ele passa a valer para todos.</li>
+          </ol>
+          <p class="purpose">Registros antigos continuam íntegros — cada um é lido com a versão em que foi criado.</p>
+          <div class="call warn"><span class="k">Levar entre ambientes</span>
+            <b>Exportar</b> baixa o layout como arquivo; <b>Importar</b> cria um rascunho a partir dele. Antes de
+            confirmar, um <b>preview</b> <b>bloqueia conflitos perigosos</b> (ex.: um campo que mudaria de número
+            para texto), a não ser que você marque “prosseguir mesmo com conflitos”.</div>
+        </section>
+
+        <section class="step reveal" id="editor">
+          <div class="step-head"><span class="badge">7</span><h2>Editor de campos (dentro de um rascunho)</h2></div>
+          <p class="purpose">Onde você desenha o formulário campo a campo — só em versões <b>rascunho</b>
+            (as ativas ficam somente leitura, para não mudar por engano o que está no ar).</p>
+          <ul class="plain">
+            <li>Escolha uma versão <span class="tok">DRAFT</span> no seletor do topo.</li>
+            <li>Ajuste de cada campo: <b>rótulo, tipo, seção, ordem</b> e as chaves <b>obrigatório / visível / editável / sensível</b>.</li>
+            <li><b>Adicionar</b> cria um campo; <b>Salvar</b> grava a linha; <b>×</b> remove.</li>
+          </ul>
+          <p class="purpose">Ao terminar, volte em <b>Versões</b> e <b>ative</b> o rascunho.</p>
+        </section>
+
+        <section class="step reveal" id="auditoria">
+          <div class="step-head"><span class="badge">8</span><h2>Auditoria (quem fez o quê)</h2></div>
+          <p class="purpose">A trilha de tudo que aconteceu — para conferência, compliance e confiança.</p>
+          <ul class="plain">
+            <li>Registra criação/edição/exclusão de registros, aprovação de campos e mudanças de versão.</li>
+            <li>Registra também <b>acessos a dados sensíveis</b> — quando alguém revela um dado protegido, fica marcado quem e quando.</li>
+            <li><b>Filtre</b> por tipo de ação, por usuário e por entidade.</li>
+          </ul>
+        </section>
+
+        <section class="step reveal" id="faq">
+          <div class="step-head"><span class="badge">?</span><h2>Perguntas comuns</h2></div>
+          <details class="faq"><summary>Por que o CPF aparece com asteriscos?</summary>
+            <div class="ans">Proteção de dados. Só quem tem o perfil autorizado (como o <span class="tok">admin</span>)
+              vê o valor real — e esse acesso fica auditado.</div></details>
+          <details class="faq"><summary>Adicionei um campo e ele não apareceu no formulário.</summary>
+            <div class="ans">Se você adicionou numa versão <b>rascunho</b>, ela precisa ser <b>ativada</b> (passo 6).
+              Se aprovou pela Governança na versão ativa, ele aparece na hora — recarregue a tela.</div></details>
+          <details class="faq"><summary>Cada empresa vê os dados da outra?</summary>
+            <div class="ans">Não. Cada <b>tenant</b> só enxerga os seus registros, seu layout, seu histórico e sua
+              auditoria — garantido inclusive no próprio banco de dados.</div></details>
+          <details class="faq"><summary>Excluí um registro por engano.</summary>
+            <div class="ans">A exclusão é lógica: o dado sai das listas mas permanece no histórico. Um administrador
+              consegue recuperá-lo se necessário.</div></details>
+
+          <div class="call tip" style="margin-top:1.6rem"><span class="k">Resumo em 1 minuto</span>
+            <b>Entrar</b> → <b>Cadastro</b> (o formulário se monta sozinho) → <b>Consulta</b> (sensível mascarado
+            conforme seu perfil + histórico) → <b>Governança</b> (aprovar campos novos sem programar) →
+            <b>Versões + Editor</b> (montar um rascunho e ativar) → <b>Auditoria</b> (conferir tudo).</div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <footer class="wrap">
+    <span>Guia de uso — Layout Dinâmico</span>
+    <span>Ilustrações são representações das telas, não capturas reais.</span>
+  </footer>
+
+  <script>
+    // tema (persiste a preferencia; respeita o sistema por padrao)
+    (function(){
+      var root=document.documentElement, KEY="ld-theme";
+      var saved=localStorage.getItem(KEY);
+      if(saved) root.setAttribute("data-theme",saved);
+      document.getElementById("theme").addEventListener("click",function(){
+        var sysDark=matchMedia("(prefers-color-scheme:dark)").matches;
+        var cur=root.getAttribute("data-theme")||(sysDark?"dark":"light");
+        var next=cur==="dark"?"light":"dark";
+        root.setAttribute("data-theme",next);localStorage.setItem(KEY,next);
+      });
+    })();
+
+    var reduce=matchMedia("(prefers-reduced-motion:reduce)").matches;
+
+    // scroll reveals
+    (function(){
+      var els=[].slice.call(document.querySelectorAll(".reveal"));
+      if(reduce){els.forEach(function(e){e.classList.add("in");});return;}
+      var io=new IntersectionObserver(function(en){en.forEach(function(e){
+        if(e.isIntersecting){e.target.classList.add("in");io.unobserve(e.target);}});},{rootMargin:"0px 0px -8% 0px",threshold:.08});
+      els.forEach(function(e){io.observe(e);});
+    })();
+
+    // mocks: campos entram em cascata (o formulario "se monta")
+    (function(){
+      var mocks=[].slice.call(document.querySelectorAll("[data-mock]"));
+      if(reduce){mocks.forEach(function(m){m.classList.add("in");});return;}
+      var io=new IntersectionObserver(function(en){en.forEach(function(e){
+        if(e.isIntersecting){e.target.classList.add("in");io.unobserve(e.target);}});},{threshold:.35});
+      mocks.forEach(function(m){io.observe(m);});
+    })();
+
+    // count-up nos indicadores
+    (function(){
+      var done=false;
+      var io=new IntersectionObserver(function(en){en.forEach(function(e){
+        if(e.isIntersecting&&!done){done=true;
+          [].slice.call(document.querySelectorAll(".num")).forEach(function(n){
+            var to=+n.getAttribute("data-count"),suf=n.getAttribute("data-suffix")||"";
+            if(reduce){n.textContent=to+suf;return;}
+            var t0=performance.now(),dur=900;
+            (function tick(now){var p=Math.min(1,(now-t0)/dur);var v=Math.round((1-Math.pow(1-p,3))*to);
+              n.textContent=v+suf;if(p<1)requestAnimationFrame(tick);})(t0);
+          });io.disconnect();}});},{threshold:.4});
+      var s=document.getElementById("stats");if(s)io.observe(s);
+    })();
+
+    // scroll-spy no sumario
+    (function(){
+      var links=[].slice.call(document.querySelectorAll("nav.toc a")),map={};
+      links.forEach(function(a){map[a.getAttribute("href").slice(1)]=a;});
+      var io=new IntersectionObserver(function(en){en.forEach(function(e){
+        if(e.isIntersecting){links.forEach(function(l){l.classList.remove("active");});
+          var a=map[e.target.id];if(a){a.classList.add("active");
+            a.scrollIntoView({block:"nearest",inline:"nearest"});}}});},{rootMargin:"-25% 0px -68% 0px",threshold:0});
+      document.querySelectorAll("section[id]").forEach(function(s){io.observe(s);});
+    })();
+
+    // movimento periferico: o "campo novo" do logo respira (largura)
+    (function(){
+      if(reduce)return;var mk=document.getElementById("mk"),t=0;
+      (function loop(){t+=.02;mk.setAttribute("width",(9+Math.sin(t)*4.5).toFixed(1));requestAnimationFrame(loop);})();
+    })();
+  </script>
+</body>
+</html>

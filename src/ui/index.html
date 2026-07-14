@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Cadastro — Layout Dinâmico</title>
+<link rel="stylesheet" href="app.css" />
+<style>
+  .formwrap{max-width:640px}
+  .formsec{margin-bottom:1rem}
+  .formsec .fields{display:grid;grid-template-columns:1fr;gap:.85rem;margin-top:.7rem}
+  @media (min-width:560px){.formsec .fields{grid-template-columns:1fr 1fr}}
+  .sens{color:var(--color-primary)}
+  #out{font-family:var(--font-mono);font-size:var(--text-xs);white-space:pre-wrap;word-break:break-word;
+    background:var(--color-surface-offset);border-radius:var(--r-md);padding:1rem;margin-top:1rem;color:var(--color-text-muted)}
+</style>
+</head>
+<body>
+<div id="appbar"></div>
+<main class="container page formwrap">
+  <p class="eyebrow reveal">Cadastro</p>
+  <h1 class="reveal">Novo registro</h1>
+  <p class="muted reveal" style="max-width:60ch">O formulário abaixo é montado a partir da configuração de
+    campos — se um campo for adicionado, ele aparece aqui automaticamente. Campos com <span class="req">∗</span>
+    são obrigatórios; com <span class="sens">🔒</span> são sensíveis.</p>
+
+  <form id="form" class="reveal"></form>
+  <div class="row" style="margin-top:1rem"><button class="btn btn-primary" id="submit" type="button">Salvar registro</button></div>
+
+  <p class="sec-title">Resposta</p>
+  <div id="out">—</div>
+</main>
+
+<script src="auth.js"></script>
+<script src="shell.js"></script>
+<script>
+  if (!requireLogin()) throw new Error("redirect");
+  const API = location.origin;
+
+  async function buildForm(){
+    const def = await (await authFetch(`${API}/form-definition`)).json();
+    const form = document.getElementById("form");
+    const sections = {};
+    def.fields.sort((a,b)=>a.order-b.order).forEach(f=>{ (sections[f.section||"Geral"] ||= []).push(f); });
+    form.innerHTML = "";
+    for (const [section, fields] of Object.entries(sections)){
+      const sec = document.createElement("section");
+      sec.className = "card formsec";
+      sec.innerHTML = `<h2>${section}</h2><div class="fields"></div>`;
+      const grid = sec.querySelector(".fields");
+      fields.forEach(f => grid.appendChild(renderField(f)));
+      form.appendChild(sec);
+    }
+    form.dataset.def = JSON.stringify(def.fields);
+    applyConditional();
+  }
+
+  function renderField(f){
+    const wrap = document.createElement("div");
+    wrap.className = "field";
+    wrap.dataset.field = f.name;
+    if (f.visibleWhen) wrap.dataset.visibleWhen = JSON.stringify(f.visibleWhen);
+    const req = f.required ? ' <span class="req">∗</span>' : "";
+    const sens = f.sensitive ? ' <span class="sens" title="dado sensível (LGPD)">🔒</span>' : "";
+    wrap.innerHTML = `<label>${f.label}${req}${sens}</label>`;
+    let input;
+    if (f.validation && Array.isArray(f.validation.enum)){
+      input = document.createElement("select");
+      input.innerHTML = `<option value="">—</option>` + f.validation.enum.map(v=>`<option>${v}</option>`).join("");
+    } else if (f.type === "BOOLEAN"){
+      input = document.createElement("select");
+      input.innerHTML = `<option value="">—</option><option value="true">Sim</option><option value="false">Não</option>`;
+    } else {
+      input = document.createElement("input");
+      input.type = f.type === "NUMBER" ? "number" : (f.type === "DATE" ? "date" : "text");
+      if (f.type === "ARRAY") input.placeholder = "valores separados por vírgula";
+    }
+    input.name = f.name; input.dataset.type = f.type;
+    if (f.itemType) input.dataset.itemType = f.itemType;
+    if (!f.editable) input.disabled = true;
+    wrap.appendChild(input);
+    return wrap;
+  }
+
+  function applyConditional(){
+    const form = document.getElementById("form");
+    const values = {};
+    form.querySelectorAll("input,select").forEach(el=>{ values[el.name] = el.value; });
+    form.querySelectorAll("[data-visible-when]").forEach(wrap=>{
+      const rule = JSON.parse(wrap.dataset.visibleWhen);
+      wrap.style.display = String(values[rule.field]) === String(rule.equals) ? "" : "none";
+    });
+  }
+
+  function collect(){
+    const form = document.getElementById("form");
+    const payload = {};
+    form.querySelectorAll(".field").forEach(wrap=>{
+      if (wrap.style.display === "none") return;
+      const el = wrap.querySelector("input,select");
+      if (!el || el.value === "") return;
+      const t = el.dataset.type;
+      let v = el.value;
+      if (t === "NUMBER") v = Number(v);
+      else if (t === "BOOLEAN") v = v === "true";
+      else if (t === "ARRAY"){ v = v.split(",").map(s=>s.trim()).filter(s=>s!==""); if (el.dataset.itemType === "NUMBER") v = v.map(Number); }
+      payload[el.name] = v;
+    });
+    return payload;
+  }
+
+  document.getElementById("form").addEventListener("input", applyConditional);
+  document.getElementById("form").addEventListener("change", applyConditional);
+
+  document.getElementById("submit").addEventListener("click", async ()=>{
+    const payload = collect();
+    const res = await authFetch(`${API}/registros`, { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify(payload) });
+    const data = await res.json();
+    document.getElementById("out").textContent = `POST /registros → ${res.status}\n` + JSON.stringify(data, null, 2);
+    if (res.ok) toast("Registro salvo (#" + data.id + ")");
+    else if (res.status === 403) toast("Sem permissão para cadastrar");
+  });
+
+  buildForm();
+</script>
+</body>
+</html>

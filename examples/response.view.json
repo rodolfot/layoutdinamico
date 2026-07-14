@@ -1,0 +1,12 @@
+{
+  "id": 1,
+  "fields": [
+    { "logicalName": "cpf",           "label": "CPF",             "dataType": "STRING",  "section": "Identificacao", "editable": true, "displayOrder": 10, "value": "12345678901" },
+    { "logicalName": "nome",          "label": "Nome completo",   "dataType": "STRING",  "section": "Identificacao", "editable": true, "displayOrder": 20, "value": "Maria Silva" },
+    { "logicalName": "email",         "label": "E-mail",          "dataType": "STRING",  "section": "Contato",       "editable": true, "displayOrder": 30, "value": "maria.silva@example.com" },
+    { "logicalName": "rendaMensal",   "label": "Renda mensal (R$)","dataType": "NUMBER", "section": "Financeiro",    "editable": true, "displayOrder": 40, "value": 7500 },
+    { "logicalName": "estadoCivil",   "label": "Estado civil",    "dataType": "STRING",  "section": "Pessoal",       "editable": true, "displayOrder": 50, "value": "CASADO" },
+    { "logicalName": "possuiVeiculo", "label": "Possui veiculo?", "dataType": "BOOLEAN", "section": "Pessoal",       "editable": true, "displayOrder": 60, "value": true }
+  ],
+  "_nota": "Campos desconhecidos enviados (corPreferida, instagram) foram persistidos no ATTRS, mas NAO aparecem na view porque nao ha metadado VISIBLE para eles. GET /registros/1 mostra o attrs bruto completo."
+}

@@ -1,0 +1,10 @@
+{
+  "cpf": "12345678901",
+  "nome": "Maria Silva",
+  "email": "maria.silva@example.com",
+  "rendaMensal": 7500,
+  "estadoCivil": "CASADO",
+  "possuiVeiculo": true,
+  "corPreferida": "azul",
+  "instagram": "@maria.silva"
+}

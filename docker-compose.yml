@@ -1,0 +1,55 @@
+# Oracle Database Free 23ai (inclui suporte nativo ao tipo JSON).
+# Imagem gvenzl/oracle-free: leve, com healthcheck e criacao automatica de usuario.
+#
+#   docker compose up -d
+#   # aguarde ficar "healthy":  docker compose ps
+#   npm run db:init            # cria schema + seed de metadados
+#
+# APP_USER/APP_USER_PASSWORD criam automaticamente o usuario "app" no PDB FREEPDB1.
+
+services:
+  oracle:
+    image: gvenzl/oracle-free:23-slim
+    container_name: poc-oracle-free
+    ports:
+      - "1521:1521"
+    environment:
+      ORACLE_PASSWORD: oracle_sys_pw     # senha de SYS/SYSTEM
+      APP_USER: app                      # usuario da aplicacao
+      APP_USER_PASSWORD: app_pw          # senha do usuario da aplicacao
+    volumes:
+      - oracle-data:/opt/oracle/oradata
+    healthcheck:
+      test: ["CMD", "healthcheck.sh"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+
+  # API + UI. Fica sob o profile "full" para nao subir no fluxo de dev (so Oracle).
+  #   Dev  (so banco):  docker compose up -d
+  #   Full (banco+API): docker compose --profile full up -d --build
+  api:
+    profiles: ["full"]
+    build: .
+    container_name: poc-layout-api
+    depends_on:
+      oracle:
+        condition: service_healthy      # so sobe apos o Oracle ficar healthy
+    environment:
+      ORACLE_USER: app
+      ORACLE_PASSWORD: app_pw
+      ORACLE_CONNECT_STRING: oracle:1521/FREEPDB1   # nome do servico no compose
+      PORT: "3000"
+      UNKNOWN_FIELDS_POLICY: passthrough
+      JWT_SECRET: dev-secret-troque-em-producao
+      JWT_EXPIRES_IN: 8h
+    ports:
+      - "3000:3000"
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/health',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+volumes:
+  oracle-data:

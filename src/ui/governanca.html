@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Governança — Layout Dinâmico</title>
+<link rel="stylesheet" href="app.css" />
+<style>
+  .pcard{margin-bottom:1rem}
+  .pcard .phead{display:flex;justify-content:space-between;align-items:baseline;gap:1rem;flex-wrap:wrap}
+  .pcard .pname{font-family:var(--font-display);font-weight:600;font-size:var(--text-lg)}
+  .pgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.7rem;margin:.9rem 0}
+  .toggles{display:flex;gap:1.3rem;flex-wrap:wrap;margin:.4rem 0 .8rem}
+  .toggles label{display:flex;align-items:center;gap:.4rem;color:var(--color-text);font-size:var(--text-sm)}
+  .toggles input{width:auto;min-height:auto}
+</style>
+</head>
+<body>
+<div id="appbar"></div>
+<main class="container page">
+  <p class="eyebrow reveal">Governança</p>
+  <h1 class="reveal">Campos novos</h1>
+  <p class="muted reveal" style="max-width:66ch">Campos que chegaram no payload e foram guardados, mas ainda
+    não têm configuração. Aprove (vira campo configurado e exibível) ou ignore — sem programar.</p>
+  <div id="lista" style="margin-top:1.4rem"></div>
+</main>
+
+<script src="auth.js"></script>
+<script src="shell.js"></script>
+<script>
+  if (!requireLogin()) throw new Error("redirect");
+  const API = location.origin;
+
+  async function load(){
+    const { pending } = await (await authFetch(`${API}/pending-fields`)).json();
+    const box = document.getElementById("lista");
+    if (!pending.length){ box.innerHTML = '<div class="empty">Nenhum campo pendente. Tudo configurado.</div>'; return; }
+    box.innerHTML = "";
+    pending.forEach(p => box.appendChild(renderCard(p)));
+  }
+
+  function renderCard(p){
+    const card = document.createElement("div");
+    card.className = "card pcard";
+    const sample = typeof p.sample === "string" ? `"${p.sample}"` : JSON.stringify(p.sample);
+    card.innerHTML = `
+      <div class="phead">
+        <span class="pname">${p.logicalName}</span>
+        <span class="badge">${p.occurrences} registro(s) · exemplo: ${sample}</span>
+      </div>
+      <div class="pgrid">
+        <div class="field"><label>Rótulo na tela</label><input data-f="label" value="${p.logicalName}"></div>
+        <div class="field"><label>Tipo</label><select data-f="dataType">
+          ${["STRING","NUMBER","BOOLEAN","DATE"].map(t=>`<option ${t===p.inferredType?"selected":""}>${t}</option>`).join("")}
+        </select></div>
+        <div class="field"><label>Seção</label><input data-f="section" value="Novos"></div>
+        <div class="field"><label>Ordem</label><input data-f="displayOrder" type="number" value="200"></div>
+      </div>
+      <div class="toggles">
+        <label><input type="checkbox" data-f="visible" checked> Visível</label>
+        <label><input type="checkbox" data-f="editable" checked> Editável</label>
+        <label><input type="checkbox" data-f="required"> Obrigatório</label>
+      </div>
+      <div class="row">
+        <button class="btn btn-good approve">Aprovar</button>
+        <button class="btn btn-danger ignore">Ignorar</button>
+      </div>`;
+    const val = f => { const el = card.querySelector(`[data-f="${f}"]`); return el.type === "checkbox" ? el.checked : el.value; };
+
+    card.querySelector(".approve").onclick = async ()=>{
+      const payload = { logicalName:p.logicalName, label:val("label"), dataType:val("dataType"),
+        section:val("section"), displayOrder:Number(val("displayOrder")),
+        visible:val("visible"), editable:val("editable"), required:val("required") };
+      const res = await authFetch(`${API}/metadata`, { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify(payload) });
+      toast(res.ok ? `Campo "${p.logicalName}" aprovado` : (res.status===403?"Sem permissão":"Falha ao aprovar"));
+      if (res.ok) load();
+    };
+    card.querySelector(".ignore").onclick = async ()=>{
+      const res = await authFetch(`${API}/ignored-fields`, { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify({ logicalName:p.logicalName }) });
+      toast(res.ok ? `Campo "${p.logicalName}" ignorado` : "Falha ao ignorar");
+      if (res.ok) load();
+    };
+    return card;
+  }
+  load();
+</script>
+</body>
+</html>

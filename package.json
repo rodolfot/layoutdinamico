@@ -1,0 +1,31 @@
+{
+  "name": "poc-layout-dinamico-oracle",
+  "version": "1.0.0",
+  "description": "POC de evolucao de layout fixo para layout dinamico em Oracle (core + JSON + metadados)",
+  "main": "dist/src/server.js",
+  "scripts": {
+    "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/src/server.js",
+    "migrate": "ts-node-dev --transpile-only scripts/migrate.ts",
+    "db:reset": "ts-node-dev --transpile-only scripts/db-reset.ts",
+    "db:init": "ts-node-dev --transpile-only scripts/db-reset.ts",
+    "load:test": "ts-node-dev --transpile-only scripts/load-test.ts"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "jsonwebtoken": "^9.0.3",
+    "oracledb": "^6.5.1"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/express": "^4.17.21",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/node": "^20.14.9",
+    "@types/oracledb": "^6.5.1",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.5.3"
+  }
+}

@@ -1,0 +1,210 @@
+### POC Layout Dinamico - catalogo de requests (REST Client / VS Code)
+### Todas as rotas (exceto /health e /auth/login) exigem Authorization: Bearer <token>.
+### Faca o login abaixo primeiro; o token e reaproveitado via {{login.response.body.token}}.
+### Usuarios demo: admin/admin123 (tudo+PII) · editor/editor123 · viewer/viewer123
+
+@base = http://localhost:3000
+
+### ============================ AUTENTICACAO ================================
+
+# @name login
+POST {{base}}/auth/login
+Content-Type: application/json
+
+{ "tenant": "default", "username": "admin", "password": "admin123" }
+
+###
+@token = {{login.response.body.token}}
+
+# @name loginViewer
+POST {{base}}/auth/login
+Content-Type: application/json
+
+{ "tenant": "default", "username": "viewer", "password": "viewer123" }
+
+###
+@viewerToken = {{loginViewer.response.body.token}}
+
+### Login de outro tenant (isolamento VPD)
+# @name loginAcme
+POST {{base}}/auth/login
+Content-Type: application/json
+
+{ "tenant": "acme", "username": "admin", "password": "admin123" }
+
+###
+@acmeToken = {{loginAcme.response.body.token}}
+
+### Sem token -> 401
+GET {{base}}/registros
+
+### ============================ REGISTROS ===================================
+
+### Cria (obrigatorios + opcionais + campos EXTRAS + lista + condicional)
+POST {{base}}/registros
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "cpf": "12345678901",
+  "nome": "Maria Silva",
+  "email": "maria.silva@example.com",
+  "rendaMensal": 7500,
+  "estadoCivil": "CASADO",
+  "nomeConjuge": "Joao",
+  "telefones": ["11999998888", "1133334444"],
+  "corPreferida": "azul"
+}
+
+### Invalido (sem cpf, enum invalido, item de lista invalido) -> 422
+POST {{base}}/registros
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "nome": "Jo", "estadoCivil": "NAMORANDO", "telefones": ["abc"] }
+
+### Lista paginada
+GET {{base}}/registros?limit=10&offset=0
+Authorization: Bearer {{token}}
+
+### View MASCARADA (viewer: sem papel pii -> cpf/email/renda mascarados)
+GET {{base}}/registros/1/view
+Authorization: Bearer {{viewerToken}}
+
+### View REVELADA (admin: papel pii) + rotulos em ingles + gera READ_SENSITIVE
+GET {{base}}/registros/1/view?lang=en
+Authorization: Bearer {{token}}
+
+### Registro cru (core + attrs; sensiveis mascarados p/ quem nao tem pii)
+GET {{base}}/registros/1
+Authorization: Bearer {{token}}
+
+### Update com concorrencia otimista (If-Match = rowVersion atual)
+PUT {{base}}/registros/1
+Authorization: Bearer {{token}}
+Content-Type: application/json
+If-Match: 1
+
+{ "cpf": "12345678901", "nome": "Maria Silva Souza", "rendaMensal": 8200 }
+
+### Historico de alteracoes
+GET {{base}}/registros/1/history
+Authorization: Bearer {{token}}
+
+### Soft-delete
+DELETE {{base}}/registros/1
+Authorization: Bearer {{token}}
+
+### ====================== RBAC (papeis) =====================================
+
+### viewer tenta criar -> 403
+POST {{base}}/registros
+Authorization: Bearer {{viewerToken}}
+Content-Type: application/json
+
+{ "cpf": "55566677700", "nome": "Nao pode" }
+
+### ====================== ISOLAMENTO MULTI-TENANT (VPD) =====================
+
+### default lista (nao ve registros de acme)
+GET {{base}}/registros?limit=200
+Authorization: Bearer {{token}}
+
+### acme lista (nao ve registros de default)
+GET {{base}}/registros?limit=200
+Authorization: Bearer {{acmeToken}}
+
+### ====================== FORM / GOVERNANCA =================================
+
+### Schema do formulario (i18n, visibleWhen, itemType)
+GET {{base}}/form-definition?lang=en
+Authorization: Bearer {{token}}
+
+### Campos pendentes de aprovacao (do ATTRS, sem metadado)
+GET {{base}}/pending-fields
+Authorization: Bearer {{token}}
+
+### Aprovar um campo pendente (editor/admin)
+POST {{base}}/metadata
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "logicalName": "corPreferida", "label": "Cor preferida", "dataType": "STRING", "displayOrder": 200 }
+
+### Ignorar um campo pendente
+POST {{base}}/ignored-fields
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "logicalName": "instagram" }
+
+### ====================== VERSIONAMENTO (admin) ============================
+
+### Lista versoes (do tenant)
+GET {{base}}/layout-versions
+Authorization: Bearer {{token}}
+
+### Cria DRAFT clonando a v1
+POST {{base}}/layout-versions
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "label": "Draft v2", "cloneFrom": 1 }
+
+### Campos de uma versao (editor)
+GET {{base}}/layout-versions/2/fields
+Authorization: Bearer {{token}}
+
+### Edita um campo da DRAFT (admin) - troque o fieldId
+PUT {{base}}/metadata/99
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "required": true, "sensitive": true, "maskStyle": "partial" }
+
+### Diff entre versoes
+GET {{base}}/layout-versions/diff?from=1&to=2
+Authorization: Bearer {{token}}
+
+### Exporta um layout (bundle portavel)
+GET {{base}}/layout-versions/1/export
+Authorization: Bearer {{token}}
+
+### Preview de import (diff + conflitos)
+POST {{base}}/layout-versions/import/preview
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "bundle": { "formatVersion": 1, "sourceLabel": "staging", "fields": [
+  { "logicalName": "rendaMensal", "jsonPath": "$.rendaMensal", "storage": "DYNAMIC", "dataType": "STRING",
+    "required": 0, "visible": 1, "editable": 1, "displayOrder": 40, "label": "Renda", "active": 1 } ] } }
+
+### Import com conflito -> 409 (sem allowConflicts)
+POST {{base}}/layout-versions/import
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "bundle": { "formatVersion": 1, "sourceLabel": "staging", "fields": [
+  { "logicalName": "rendaMensal", "jsonPath": "$.rendaMensal", "storage": "DYNAMIC", "dataType": "STRING",
+    "required": 0, "visible": 1, "editable": 1, "displayOrder": 40, "label": "Renda", "active": 1 } ] } }
+
+### Ativa uma versao
+POST {{base}}/layout-versions/2/activate
+Authorization: Bearer {{token}}
+
+### ====================== AUDITORIA / DASHBOARD / HEALTH ====================
+
+### Trilha (filtros combinaveis)
+GET {{base}}/audit?limit=20
+Authorization: Bearer {{token}}
+
+### Acessos a dado sensivel (LGPD)
+GET {{base}}/audit?action=READ_SENSITIVE
+Authorization: Bearer {{token}}
+
+### Dashboard consolidado
+GET {{base}}/dashboard
+Authorization: Bearer {{token}}
+
+### Healthcheck profundo (publico; checa o Oracle)
+GET {{base}}/health

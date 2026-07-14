@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Auditoria — Layout Dinâmico</title>
+<link rel="stylesheet" href="app.css" />
+<style>
+  .filters{display:flex;gap:.6rem;flex-wrap:wrap;align-items:flex-end;margin:1rem 0}
+  .filters .field{min-width:150px}
+  .filters input,.filters select{min-width:130px}
+  table.aud{min-width:820px}
+  table.aud td{vertical-align:top;font-size:var(--text-sm)}
+  .when{font-family:var(--font-mono);font-size:var(--text-xs);color:var(--color-text-faint);white-space:nowrap}
+  .details{font-family:var(--font-mono);font-size:var(--text-xs);color:var(--color-text-muted);word-break:break-word}
+  .act{font-family:var(--font-mono);font-size:var(--text-xs);border-radius:999px;padding:.12rem .5rem;white-space:nowrap;
+    background:var(--color-surface-offset);color:var(--color-text-muted)}
+  .act.CREATE{background:var(--color-primary-soft);color:var(--color-primary)}
+  .act.UPDATE{background:var(--warn-soft);color:var(--warn)}
+  .act.DELETE,.act.IGNORE_FIELD,.act.DELETE_FIELD{background:var(--crit-soft);color:var(--crit)}
+  .act.APPROVE_FIELD,.act.UPDATE_FIELD{background:var(--good-soft);color:var(--good)}
+  .act.READ_SENSITIVE{background:var(--crit-soft);color:var(--crit)}
+</style>
+</head>
+<body>
+<div id="appbar"></div>
+<main class="container page">
+  <p class="eyebrow reveal">Auditoria</p>
+  <h1 class="reveal">Trilha — quem fez o quê, e quando</h1>
+
+  <div class="filters reveal">
+    <div class="field"><label>Entidade</label>
+      <select id="fEntity"><option value="">todas</option><option>REGISTRO</option><option>FIELD_METADATA</option><option>LAYOUT_VERSION</option></select></div>
+    <div class="field"><label>Ação</label>
+      <select id="fAction"><option value="">todas</option><option>CREATE</option><option>UPDATE</option><option>DELETE</option>
+        <option>READ_SENSITIVE</option><option>APPROVE_FIELD</option><option>IGNORE_FIELD</option>
+        <option>UPDATE_FIELD</option><option>DELETE_FIELD</option><option>CREATE_VERSION</option><option>ACTIVATE_VERSION</option></select></div>
+    <div class="field"><label>Ator</label><input id="fActor" placeholder="ex.: admin"></div>
+    <button class="btn btn-primary" id="btn">Filtrar</button>
+    <span class="muted" id="count" style="margin-left:auto"></span>
+  </div>
+
+  <div class="tablecard reveal">
+    <table class="aud">
+      <thead><tr><th>#</th><th>Quando</th><th>Ator</th><th>Ação</th><th>Entidade</th><th>ID</th><th>Detalhes</th></tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </div>
+</main>
+
+<script src="auth.js"></script>
+<script src="shell.js"></script>
+<script>
+  if (!requireLogin()) throw new Error("redirect");
+  const API = location.origin;
+
+  async function load(){
+    const p = new URLSearchParams();
+    const ent = document.getElementById("fEntity").value, act = document.getElementById("fAction").value, actor = document.getElementById("fActor").value.trim();
+    if (ent) p.set("entity", ent); if (act) p.set("action", act); if (actor) p.set("actor", actor); p.set("limit","200");
+    const data = await (await authFetch(`${API}/audit?${p}`)).json();
+    document.getElementById("count").textContent = `${data.count} evento(s)`;
+    const rows = document.getElementById("rows");
+    rows.innerHTML = data.entries.length ? "" : '<tr><td colspan="7" class="muted">sem eventos</td></tr>';
+    data.entries.forEach(e=>{
+      const det = e.details ? `<span class="details">${JSON.stringify(e.details)}</span>` : "";
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td>${e.auditId}</td><td class="when">${e.ts}</td><td><b>${e.actor}</b></td>
+        <td><span class="act ${e.action}">${e.action}</span></td><td>${e.entity}</td>
+        <td><code>${e.entityId ?? "-"}</code></td><td>${det}</td>`;
+      rows.appendChild(tr);
+    });
+  }
+  document.getElementById("btn").onclick = load;
+  load();
+</script>
+</body>
+</html>

@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Versões — Layout Dinâmico</title>
+<link rel="stylesheet" href="app.css" />
+<style>
+  .panel{margin-top:1.3rem}
+  .toolrow{display:flex;gap:.6rem;flex-wrap:wrap;align-items:center}
+  .toolrow input,.toolrow select{width:auto;min-width:140px;flex:0 1 auto}
+  .grow{flex:1 1 220px}
+  .diff{display:grid;grid-template-columns:1fr;gap:1rem;margin-top:1rem}
+  @media (min-width:680px){.diff{grid-template-columns:repeat(3,1fr)}}
+  .diff h4{font-family:var(--font-mono);font-size:var(--text-xs);letter-spacing:.08em;text-transform:uppercase;margin:0 0 .4rem}
+  .diff ul{margin:0;padding-left:1.1rem;font-size:var(--text-sm)}
+  .added h4{color:var(--good)} .removed h4{color:var(--crit)} .changed h4{color:var(--warn)}
+  #conflictBox{margin-top:.9rem;border:1px solid oklch(from var(--crit) l c h /.4);background:var(--crit-soft);border-radius:var(--r-md);padding:.8rem 1rem}
+  #impJson{font-family:var(--font-mono);font-size:var(--text-xs);min-height:120px;resize:vertical}
+  td .row{gap:.4rem}
+</style>
+</head>
+<body>
+<div id="appbar"></div>
+<main class="container page">
+  <p class="eyebrow reveal">Versões de layout</p>
+  <h1 class="reveal">Criar · clonar · ativar · comparar</h1>
+  <p class="muted reveal" style="max-width:66ch">Registros guardam a versão em que foram criados; ativar uma
+    nova versão não altera a leitura dos registros antigos.</p>
+
+  <div class="tablecard reveal" style="margin-top:1.2rem">
+    <table>
+      <thead><tr><th>ID</th><th>Label</th><th>Status</th><th>Campos</th><th>Criada em</th><th></th></tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </div>
+
+  <div class="card panel reveal">
+    <h2>Criar nova versão</h2>
+    <div class="toolrow" style="margin-top:.7rem">
+      <input id="newLabel" class="grow" placeholder="Label (ex.: Layout Cadastro v2)">
+      <label class="muted" style="display:flex;align-items:center;gap:.4rem">clonar de
+        <select id="cloneFrom"></select></label>
+      <button class="btn btn-primary" id="btnCreate">Criar (DRAFT)</button>
+    </div>
+    <p class="muted" style="margin:.6rem 0 0">Clonar copia os metadados da versão escolhida; a nova nasce como DRAFT até ser ativada.</p>
+  </div>
+
+  <div class="card panel reveal">
+    <h2>Importar layout <span class="muted">(promover de outro ambiente)</span></h2>
+    <div class="toolrow" style="margin:.7rem 0">
+      <input id="impLabel" class="grow" placeholder="Label (opcional)">
+      <button class="btn" id="btnPreview">Pré-visualizar</button>
+      <button class="btn btn-primary" id="btnImport" disabled>Confirmar import</button>
+    </div>
+    <textarea id="impJson" placeholder="Cole aqui o JSON exportado (botão Exportar na tabela acima)"></textarea>
+    <div id="impPreview" hidden>
+      <p class="muted" id="impAgainst" style="margin-top:.8rem"></p>
+      <div class="diff">
+        <div class="added"><h4>Adicionados</h4><ul id="iAdd"></ul></div>
+        <div class="removed"><h4>Removidos</h4><ul id="iRem"></ul></div>
+        <div class="changed"><h4>Alterados</h4><ul id="iChg"></ul></div>
+      </div>
+      <div id="conflictBox" hidden>
+        <b style="color:var(--crit)">Conflitos incompatíveis</b>
+        <ul id="iConf" style="margin:.4rem 0;color:var(--crit);font-size:var(--text-sm)"></ul>
+        <label style="display:flex;align-items:center;gap:.4rem;color:var(--color-text)">
+          <input type="checkbox" id="impForce" style="width:auto;min-height:auto"> Prosseguir mesmo com conflitos</label>
+      </div>
+    </div>
+  </div>
+
+  <div class="card panel reveal">
+    <h2>Comparar versões</h2>
+    <div class="toolrow" style="margin-top:.7rem">
+      de <select id="diffFrom"></select> para <select id="diffTo"></select>
+      <button class="btn btn-good" id="btnDiff">Comparar</button>
+    </div>
+    <div class="diff" id="diffOut" hidden>
+      <div class="added"><h4>Adicionados</h4><ul id="dAdd"></ul></div>
+      <div class="removed"><h4>Removidos</h4><ul id="dRem"></ul></div>
+      <div class="changed"><h4>Alterados</h4><ul id="dChg"></ul></div>
+    </div>
+  </div>
+</main>
+
+<script src="auth.js"></script>
+<script src="shell.js"></script>
+<script>
+  if (!requireLogin()) throw new Error("redirect");
+  const API = location.origin;
+  let versions = [];
+  const li = x => `<li>${x}</li>`, emptyLi = '<li class="muted">—</li>';
+
+  async function load(){
+    const data = await (await authFetch(`${API}/layout-versions`)).json();
+    versions = data.versions;
+    const rows = document.getElementById("rows"); rows.innerHTML = "";
+    versions.forEach(v=>{
+      const tr = document.createElement("tr");
+      const actBtn = v.status === "ACTIVE" ? '<span class="muted">ativa</span>' : `<button class="btn btn-sm btn-good" data-act="${v.versionId}">Ativar</button>`;
+      const expBtn = `<button class="btn btn-sm" data-exp="${v.versionId}">Exportar</button>`;
+      const edBtn = v.status === "DRAFT" ? ` <a class="btn btn-sm" href="editor.html?version=${v.versionId}">editar</a>` : "";
+      tr.innerHTML = `<td>${v.versionId}</td><td>${v.label}</td>
+        <td><span class="badge ${v.status}">${v.status}</span></td>
+        <td>${v.fieldCount}</td><td class="faint">${v.createdAt}</td>
+        <td><div class="row">${actBtn} ${expBtn}${edBtn}</div></td>`;
+      rows.appendChild(tr);
+    });
+    rows.querySelectorAll("[data-act]").forEach(b=> b.onclick = ()=> activate(b.dataset.act));
+    rows.querySelectorAll("[data-exp]").forEach(b=> b.onclick = ()=> exportVer(b.dataset.exp));
+    fillSelects();
+  }
+
+  function fillSelects(){
+    const opts = versions.map(v=>`<option value="${v.versionId}">#${v.versionId} ${v.label}</option>`).join("");
+    const active = versions.find(v=>v.status === "ACTIVE");
+    for (const id of ["cloneFrom","diffFrom","diffTo"]) document.getElementById(id).innerHTML = opts;
+    if (active){ document.getElementById("cloneFrom").value = active.versionId; document.getElementById("diffFrom").value = active.versionId; }
+    if (versions[0]) document.getElementById("diffTo").value = versions[0].versionId;
+  }
+
+  async function activate(id){
+    const res = await authFetch(`${API}/layout-versions/${id}/activate`, { method:"POST" });
+    toast(res.ok ? `Versão ${id} ativada` : (res.status===403?"Sem permissão (admin)":"Falha ao ativar"));
+    load();
+  }
+
+  async function exportVer(id){
+    const data = await (await authFetch(`${API}/layout-versions/${id}/export`)).json();
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type:"application/json" });
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `layout-v${id}.json`; a.click();
+    URL.revokeObjectURL(a.href);
+    toast(`Exportado layout-v${id}.json (${data.fields.length} campos)`);
+  }
+
+  document.getElementById("btnCreate").onclick = async ()=>{
+    const label = document.getElementById("newLabel").value.trim();
+    if (!label) return toast("informe o label");
+    const cloneFrom = document.getElementById("cloneFrom").value;
+    const res = await authFetch(`${API}/layout-versions`, { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify({ label, cloneFrom:Number(cloneFrom) }) });
+    const d = await res.json();
+    toast(res.ok ? `Versão ${d.versionId} criada (DRAFT)` : (res.status===403?"Sem permissão (admin)":"Falha ao criar"));
+    if (res.ok){ document.getElementById("newLabel").value = ""; load(); }
+  };
+
+  function parseBundle(){ try { return JSON.parse(document.getElementById("impJson").value); } catch { toast("JSON inválido"); return null; } }
+
+  document.getElementById("btnPreview").onclick = async ()=>{
+    const bundle = parseBundle(); if (!bundle) return;
+    const res = await authFetch(`${API}/layout-versions/import/preview`, { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify({ bundle }) });
+    const d = await res.json();
+    if (!res.ok) return toast(d.error || "Falha no preview");
+    document.getElementById("impPreview").hidden = false;
+    document.getElementById("impAgainst").textContent =
+      `Comparando com a versão ativa #${d.against}: +${d.summary.added} −${d.summary.removed} ~${d.summary.changed}, ${d.summary.conflicts} conflito(s)`;
+    document.getElementById("iAdd").innerHTML = d.added.map(li).join("") || emptyLi;
+    document.getElementById("iRem").innerHTML = d.removed.map(li).join("") || emptyLi;
+    document.getElementById("iChg").innerHTML = d.changed.map(c=>`<li><b>${c.logicalName}</b>: ${c.changes.join("; ")}</li>`).join("") || emptyLi;
+    const hasConflicts = d.conflicts.length > 0;
+    document.getElementById("conflictBox").hidden = !hasConflicts;
+    document.getElementById("iConf").innerHTML = d.conflicts.map(c=>`<li><b>${c.logicalName}</b>: ${c.reason}</li>`).join("");
+    document.getElementById("impForce").checked = false;
+    document.getElementById("btnImport").disabled = hasConflicts;
+  };
+  document.getElementById("impForce").addEventListener("change", e=>{ document.getElementById("btnImport").disabled = !e.target.checked; });
+
+  document.getElementById("btnImport").onclick = async ()=>{
+    const bundle = parseBundle(); if (!bundle) return;
+    const label = document.getElementById("impLabel").value.trim() || undefined;
+    const allowConflicts = document.getElementById("impForce").checked;
+    const res = await authFetch(`${API}/layout-versions/import`, { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify({ label, bundle, allowConflicts }) });
+    const d = await res.json();
+    if (res.status === 409) return toast(`Bloqueado: ${d.conflicts.length} conflito(s)`);
+    toast(res.ok ? `Importado como versão ${d.versionId} (DRAFT, ${d.fieldCount} campos)` : (res.status===403?"Sem permissão (admin)":"Falha ao importar"));
+    if (res.ok){ document.getElementById("impJson").value = ""; document.getElementById("impLabel").value = "";
+      document.getElementById("impPreview").hidden = true; document.getElementById("btnImport").disabled = true; load(); }
+  };
+
+  document.getElementById("btnDiff").onclick = async ()=>{
+    const from = document.getElementById("diffFrom").value, to = document.getElementById("diffTo").value;
+    const d = await (await authFetch(`${API}/layout-versions/diff?from=${from}&to=${to}`)).json();
+    document.getElementById("diffOut").hidden = false;
+    document.getElementById("dAdd").innerHTML = d.added.map(li).join("") || emptyLi;
+    document.getElementById("dRem").innerHTML = d.removed.map(li).join("") || emptyLi;
+    document.getElementById("dChg").innerHTML = d.changed.map(c=>`<li><b>${c.logicalName}</b>: ${c.changes.join("; ")}</li>`).join("") || emptyLi;
+  };
+
+  load();
+</script>
+</body>
+</html>
